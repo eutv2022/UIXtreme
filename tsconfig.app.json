@@ -1,0 +1,15 @@
+// tsconfig.app.json
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json", // O similar, depende de tu plantilla
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  "exclude": ["src/**/__tests__/*"],
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".", // Asegúrate de que esto exista
+    "paths": {
+      "@/*": ["./src/*"] // Asegúrate de que esto exista
+    },
+    "lib": ["DOM", "ESNext"],
+    "types": ["node"] // Esto es importante para 'path' si lo usas en un contexto de cliente y no solo en build
+  }
+}

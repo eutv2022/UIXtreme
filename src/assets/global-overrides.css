@@ -1,0 +1,67 @@
+/* src/assets/global-overrides.css */
+
+/* ESTILOS PARA LA SEVERIDAD PERSONALIZADA 'custom-cyan' */
+:deep(.p-button.p-button-custom-cyan) {
+    background: var(--custom-cyan-color) !important;
+    color: var(--custom-cyan-color-text) !important;
+    border-color: var(--custom-cyan-color) !important;
+}
+
+:deep(.p-button.p-button-custom-cyan:hover) {
+    background: var(--custom-cyan-color-hover) !important;
+    border-color: var(--custom-cyan-color-hover) !important;
+}
+
+/* ESTILOS PARA EL SplitButton (PrimeVue) */
+:deep(.action-split-button.p-splitbutton .p-button),
+:deep(.action-split-button.p-splitbutton .p-splitbutton-menubutton) {
+  background-color: var(--custom-cyan-color) !important; 
+  border-color: var(--custom-cyan-color) !important;
+  color: var(--custom-cyan-color-text) !important;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+:deep(.action-split-button.p-splitbutton .p-button:hover),
+:deep(.action-split-button.p-splitbutton .p-splitbutton-menubutton:hover) {
+  background-color: var(--custom-cyan-color-hover) !important;
+  border-color: var(--custom-cyan-color-hover) !important;
+}
+
+/* Ajustes de tamaño para el SplitButton */
+:deep(.action-split-button .p-button-label),
+:deep(.action-split-button .pi) {
+  font-size: 0.8rem; 
+  line-height: 1;
+}
+
+/* Estilos para el Tag de estado */
+:deep(.p-tag.status-expired) { background-color: var(--red-500) !important; color: var(--surface-0) !important; }
+:deep(.p-tag.status-warning) { background-color: var(--orange-500) !important; color: var(--surface-0) !important; }
+:deep(.p-tag.status-active) { background-color: var(--green-500) !important; color: var(--surface-0) !important; }
+
+
+@media (max-width: 768px) {
+  .services-table-container {
+    padding: 0.5rem;
+  }
+  .services-html-table {
+    min-width: 700px;
+  }
+  .services-html-table th,
+  .services-html-table td {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  .pagination-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .page-info {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+}
