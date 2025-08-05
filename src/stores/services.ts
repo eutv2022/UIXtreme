@@ -1,7 +1,7 @@
 // src/stores/services.ts
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Service, NewServiceInput, ServiceImage, UserProfile } from '@/types/Service';
+import type { Service, NewServiceInput, ServiceImage, UserProfile, RenewalLog } from '@/types/Service';
 import { supabase } from '../supabase.js';
 import { useToast } from 'primevue/usetoast';
 import { useRouter } from 'vue-router';
@@ -14,6 +14,7 @@ export const useServiceStore = defineStore('services', () => {
 
   // --- ESTADO ---
   const services = ref<Service[]>([]);
+  const renewalLogs = ref<RenewalLog[]>([]);
   const userDisplayName = ref('Cargando...');
   const currentUserId = ref<string | null>(null);
   const isAddingClient = ref(false);
@@ -34,6 +35,7 @@ export const useServiceStore = defineStore('services', () => {
     deviceCounts: {},
     payment_method: '',
     amount: 0,
+    renewal_counter: 0,
     note: null,
     owner_id: ''
   });
@@ -193,6 +195,42 @@ export const useServiceStore = defineStore('services', () => {
     }
   };
 
+  const fetchRenewalLogs = async (serviceId: number): Promise<RenewalLog[]> => {
+  try {
+    const serviceStore = useServiceStore();
+    const userRole = serviceStore.userRole;
+
+    let query = supabase
+      .from('renewals')
+      .select('*, services(name, profiles(username))'); 
+
+    // Aquí es donde usamos la variable userRole
+    // Si el usuario NO es admin, filtramos por el servicio específico.
+    if (userRole !== 'admin') {
+      query = query.eq('service_id', serviceId);
+    }
+
+    const { data, error } = await query.order('renewal_date', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    if (data) {
+      const formattedData = data.map((log: any) => ({
+        ...log,
+        renewal_date: new Date(log.renewal_date),
+        owner_username: log.services?.profiles?.username || 'Desconocido',
+      }));
+      return formattedData;
+    }
+    return [];
+  } catch (error: any) {
+    console.error('Error al obtener el historial de renovaciones:', error.message);
+    return [];
+  }
+};
+
   const fetchServices = async () => {
     if (!currentUserId.value) {
       services.value = [];
@@ -231,6 +269,8 @@ export const useServiceStore = defineStore('services', () => {
       }
     } catch (err: any) {
       toast.add({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error al cargar los servicios.', life: 3000 });
+      console.error('Error al renovar servicio:', err); // Cambiado 'error' a 'err'
+
     }
   };
 
@@ -241,6 +281,7 @@ export const useServiceStore = defineStore('services', () => {
     }
 
     try {
+      // eslint-disable-next-line no-unused-vars
      const { images, deviceCounts, ...restOfServiceData } = serviceData;
 
      const serviceToInsert = {
@@ -330,6 +371,7 @@ export const useServiceStore = defineStore('services', () => {
 
       note: typeof updatedService.note !== 'undefined' ? updatedService.note : originalService.note,
       device: typeof updatedService.deviceCounts !== 'undefined' ? formatDeviceCountsToArray(updatedService.deviceCounts) : originalService.device,
+      renewal_counter: updatedService.renewal_counter || originalService.renewal_counter,
     };
 
     if (userRole.value === 'admin' && updatedService.owner_id !== undefined) {
@@ -398,16 +440,17 @@ export const useServiceStore = defineStore('services', () => {
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      await Preferences.remove({ key: 'supabase_refresh_token' });
-      toast.add({ severity: 'success', summary: 'Sesión Cerrada', detail: 'Has cerrado sesión correctamente.', life: 3000 });
-      router.push('/login');
-    } catch (error: any) {
-      toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cerrar sesión.', life: 3000 });
-    }
-  };
-
+     const { error } = await supabase.auth.signOut();
+     if (error) throw error;
+     await Preferences.remove({ key: 'supabase_refresh_token' });
+     toast.add({ severity: 'success', summary: 'Sesión Cerrada', detail: 'Has cerrado sesión correctamente.', life: 3000 });
+     router.push('/login');  
+     } catch (error: any) {
+     toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo cerrar sesión.', life: 3000 });
+     console.error('Error al cerrar sesión:', error);
+     return false;
+   }
+   };
   const scrollToServiceAndHighlight = (serviceId: number) => {
     highlightedServiceId.value = serviceId;
     setTimeout(() => {
@@ -466,6 +509,7 @@ export const useServiceStore = defineStore('services', () => {
       return data as ServiceImage[];
     } catch (err: any) {
       toast.add({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error al cargar las imágenes.', life: 3000 });
+      console.error('Error al eliminar imagen:', err); // Cambiado 'error' a 'err'
       return [];
     }
   };
@@ -481,7 +525,7 @@ export const useServiceStore = defineStore('services', () => {
     const filePath = `${currentUserId.value}/${serviceId}/${fileName}`;
 
     try {
-      const { data: storageData, error: storageError } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from('service-photos')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -575,9 +619,10 @@ export const useServiceStore = defineStore('services', () => {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('services')
         .update({ note: newNote === '' ? null : newNote }) 
+        .eq('id', serviceId)
         .select();
 
       if (error) throw error;
@@ -768,6 +813,7 @@ const handleEditService = (service: Service) => {
     note: service.note === '' ? null : service.note,
     owner_id: service.owner_id,
     images: service.images || [],
+    renewal_counter: service.renewal_counter,
   };
 
   newServiceFormData.value = serviceForForm;
@@ -828,6 +874,21 @@ const handleEditService = (service: Service) => {
     });
   });
 
+  const addRenewalLog = async (renewalLog: Omit<RenewalLog, 'id' | 'renewal_date'>): Promise<boolean> => {
+    try {
+        const { data, error } = await supabase
+            .from('renewals')
+            .insert([renewalLog])
+            .select();
+
+        if (error) throw error;
+
+        return !!data;
+    } catch (error: any) {
+        console.error('Error al agregar el registro de renovación:', error.message);
+        return false;
+    }
+};
   return {
     // Estado
     services,
@@ -847,7 +908,7 @@ const handleEditService = (service: Service) => {
     currentServiceForInfo,
     isExporting,
     isImporting,
-
+    
 
     // Acciones
     fetchUser,
@@ -880,12 +941,14 @@ const handleEditService = (service: Service) => {
     // Funciones de utilidad
     getServiceStatus,
     formatPhoneNumber,
-
+    renewalLogs,
+    addRenewalLog,
+    fetchRenewalLogs,
     // Getters computados
     getUpcomingServices,
     getActiveServices,
     highlightedServiceId,
     scrollToServiceAndHighlight,
-    
+
   };
 });

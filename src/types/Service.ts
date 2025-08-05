@@ -30,8 +30,9 @@ export interface Service {
     note: string | null; 
     owner_id: string;
     created_at: string; 
-  
-    images?: ServiceImage[]; 
+    renewals: RenewalRecord[];
+    images?: ServiceImage[];
+    renewal_counter: number; 
 }
 
 // Interfaz para la entrada de un nuevo servicio (sin ID, con deviceCounts para el formulario)
@@ -49,5 +50,28 @@ export interface NewServiceInput {
     amount: number;
     note: string | null;
     owner_id: string;
-    images?: ServiceImage[]; 
+    images?: ServiceImage[];
+    renewal_counter?: number; 
+}
+// Interfaz para el registro de una renovación (NUEVO)
+export interface RenewalRecord {
+    service_id: number;
+    renewal_date: Date;
+    new_expiration_date: Date;
+    amount: number;
+    payment_method: string;
+    note?: string;
+}
+export interface RenewalLog {
+  id?: number;
+  service_id: number;
+  client_name: string;
+  username: string;
+  renewal_date?: Date;
+  renewal_number: number;
+  server: string;
+  payment_method: string;
+  amount: number;
+  owner_username: string;
+  created_at: string;
 }

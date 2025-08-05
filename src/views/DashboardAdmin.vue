@@ -6,8 +6,10 @@
       <div class="left-actions"> 
         <SplitButton label="Datos" :model="importExportItems" severity="sucess" rounded text raised />
         <Button label="Ver Estadísticas" icon="pi pi-chart-bar" severity="sucess" rounded text raised @click="handleViewStats" />
+        <Button label="Pagos" icon="pi pi-dollar" severity="sucess" rounded text raised @click="router.push({ name: 'Pagos' })" />
+
       </div>
-      <div class="right-actions"> 
+      <div class="right-actions hidden"> 
         <Button label="Añadir Nuevo Servicio" icon="pi pi-plus" class="add-service-button" @click="handleAddClient" />
       </div>
     </div>
@@ -28,6 +30,7 @@
       @editService="handleEditClient"
       @deleteService="handleDeleteService"
       @showServiceInfo="serviceStore.showServiceInfoScreen"
+      @renewService="handleRenewService"
       :showOwnerColumn="true"
       :allUserProfiles="allUserProfilesForTable"
     />
@@ -47,6 +50,7 @@
       class="client-form-dialog-wrapper"
     >
       <ClientForm
+        v-if="serviceStore.userRole"
         v-model:newService="(serviceStore.newServiceFormData as NewServiceInput)"
         :serverOptions="serviceStore.serverOptions"
         :paymentMethodOptions="serviceStore.paymentMethodOptions"
@@ -58,9 +62,31 @@
         :userOptions="serviceStore.userRole === 'admin' ? serviceStore.allUserProfiles : []"
         @save="handleSaveClient"
         @cancel="handleCancelForm"
+        :userRole="serviceStore.userRole as 'user' | 'admin'"
       />
     </Dialog>
 
+    
+    <Dialog
+    v-model:visible="isRenewalDialogVisible"
+    header="Renovar Servicio"
+    :modal="true"
+    :draggable="false"
+    :resizable="false"
+    @hide="handleDialogHideRenew"
+    :breakpoints="{'960px': '75vw', '640px': '90vw'}"
+    position="top"
+    appendTo="body"
+    >
+    <RenewalForm
+    v-if="isRenewalDialogVisible && serviceToRenew"
+    :service="serviceToRenew"
+    :serverOptions="serviceStore.serverOptions"
+    :userRole="serviceStore.userRole as 'user' | 'admin'"
+    @save="handleSaveRenewal"
+    @cancel="handleCancelRenewal"
+      />
+    </Dialog>
     <!-- Dialog de confirmación de eliminación -->
     <Dialog
       v-model:visible="isConfirmDeleteDialogVisible"
@@ -104,6 +130,7 @@
         :deleteServiceImage="serviceStore.deleteServiceImage"
         :updateServiceNote="serviceStore.updateServiceNote"
         @close="serviceStore.closeServiceInfoScreen"
+        :userRole="serviceStore.userRole"
       />
       <template #footer>
         <Button label="Cerrar" icon="pi pi-times" @click="serviceStore.closeServiceInfoScreen" />
@@ -129,12 +156,14 @@ import type { NewServiceInput, Service } from '@/types/Service';
 import type { Store } from 'pinia';
 import { useConfirm } from 'primevue/useconfirm';
 import StatsDialog from '@/components/StatsDialog.vue';
+import RenewalForm from '@/components/RenewalForm.vue';
+import { useRouter } from 'vue-router';
 
 // CAMBIO CLAVE: Tipado explícito para serviceStore
 const serviceStore: ReturnType<typeof useServiceStore> = useServiceStore();
 const confirm = useConfirm();
 const toast = useToast();
-
+const router = useRouter();
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const showStatsDialog = ref(false);
 const handleImportFile = async (event: Event) => {
@@ -156,14 +185,17 @@ const serviceToDeleteId = ref<number | null>(null);
 const allUserProfilesForTable = computed(() => {
   return serviceStore.allUserProfiles || [];
 });
+const serviceToRenew = ref<Service | null>(null);
+const isRenewalDialogVisible = ref(false);
 
 onMounted(async () => {
   await serviceStore.fetchUser();
   serviceStore.fetchServices();
 });
 
-watch([isClientFormDialogVisible, () => serviceStore.isShowingServiceInfo], ([isAdding, isShowingInfo]) => {
-  if (isAdding || isShowingInfo) {
+watch([isClientFormDialogVisible, () => serviceStore.isShowingServiceInfo, isRenewalDialogVisible],
+ ([isAdding, isShowingInfo, isRenewing]) => {
+  if (isAdding || isShowingInfo || isRenewing) {
     document.body.classList.add('no-scroll-body');
   } else {
     document.body.classList.remove('no-scroll-body');
@@ -263,6 +295,62 @@ const handleDialogHide = () => {
   serviceStore.resetNewServiceFormData();
 };
 
+const handleRenewService = (service: Service) => {
+  serviceToRenew.value = service;
+  isRenewalDialogVisible.value = true;
+};
+
+const handleSaveRenewal = async (updatedService: Partial<NewServiceInput>) => {
+  try {
+    if (!serviceToRenew.value || !serviceToRenew.value.id) {
+      toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo encontrar el servicio para renovar.', life: 5000 });
+      return;
+    }
+
+    const newRenewalCounter = (serviceToRenew.value.renewal_counter || 0) + 1;
+    updatedService.renewal_counter = newRenewalCounter;
+
+    const success = await serviceStore.updateService(updatedService);
+
+    if (success) {
+      const renewalLog = {
+        service_id: serviceToRenew.value.id,
+        client_name: serviceToRenew.value.name,
+        username: serviceToRenew.value.username,
+        renewal_number: newRenewalCounter,
+        server: serviceToRenew.value.server,
+        payment_method: serviceToRenew.value.payment_method,
+        amount: serviceToRenew.value.amount,
+        owner_username: serviceStore.userProfile?.username || 'admin',
+        created_at: new Date().toISOString(),
+      };
+
+      const logSuccess = await serviceStore.addRenewalLog(renewalLog);
+
+      if (logSuccess) {
+        isRenewalDialogVisible.value = false;
+        toast.add({ severity: 'success', summary: 'Éxito', detail: 'Servicio renovado correctamente.', life: 3000 });
+      } else {
+        toast.add({ severity: 'warn', summary: 'Advertencia', detail: 'Servicio actualizado, pero falló el registro de la renovación.', life: 5000 });
+      }
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: 'No se pudo renovar el servicio.', life: 5000 });
+    }
+  } catch (error: any) {
+    console.error('Error al renovar el servicio:', error.message);
+    toast.add({ severity: 'error', summary: 'Error', detail: `Error al renovar el servicio: ${error.message}`, life: 5000 });
+  }
+};
+
+const handleCancelRenewal = () => {
+  isRenewalDialogVisible.value = false;
+  serviceToRenew.value = null;
+};
+
+const handleDialogHideRenew = () => {
+  serviceToRenew.value = null;
+};
+
 const scrollToServiceAndHighlight = (id: number) => {
   serviceStore.setHighlightedService(id);
 };
@@ -329,7 +417,10 @@ const scrollToServiceAndHighlight = (id: number) => {
   flex-grow: 1; 
   padding: 0 !important; 
 }
-
+.left-actions {
+  display: flex;
+  gap: 1rem; /* Añade un espacio entre los botones */
+}
 
 @media (max-width: 768px) {
   .dashboard-section-header {
@@ -344,6 +435,8 @@ const scrollToServiceAndHighlight = (id: number) => {
   .add-service-button {
     width: 100%;
   }
+ 
+
   .client-form-dialog-wrapper :deep(.p-dialog) {
     width: 98vw !important; 
     max-height: 98vh !important; 

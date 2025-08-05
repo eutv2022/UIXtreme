@@ -4,11 +4,11 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { supabase } from '../supabase'; 
 
 
-import Home from '../views/Home.vue';
 import Login from '../views/Login.vue';
 import DashboardUser from '../views/DashboardUser.vue';
 import DashboardAdmin from '../views/DashboardAdmin.vue';
 import Clientes from '../views/Clientes.vue';
+import Pagos from '@/views/Pagos.vue';
 
 
 import AppLayout from '@/layouts/AppLayout.vue'; 
@@ -49,7 +49,11 @@ const routes: Array<RouteRecordRaw> = [
         component: Clientes,
         meta: { requiresAuth: true, roles: ['user', 'admin'] } 
       },
-      
+      {
+        path: '/pagos',
+        name: 'Pagos',
+        component: Pagos
+      },
       {
         path: '', 
         redirect: { name: 'dashboardUser' } 

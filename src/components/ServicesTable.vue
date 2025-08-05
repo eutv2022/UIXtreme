@@ -120,6 +120,7 @@ const emits = defineEmits([
   'editService',
   'showServiceInfo',
   'deleteService',
+  'renewService',
 ]);
 
 const currentPage = ref(1);
@@ -163,6 +164,11 @@ const getOwnerUsername = (ownerId: string | undefined): string => {
 
 const getActionsMenuItems = (service: Service) => {
   return [
+    {
+      label: 'Renovar',
+      icon: 'pi pi-refresh',
+      command: () => { emits('renewService', service); }
+    },
     {
       label: 'Editar',
       icon: 'pi pi-pencil',
@@ -230,7 +236,7 @@ const sortedServices = computed(() => {
       return (valA - valB) * sortOrder.value;
     }
     if (valA instanceof Date && valB instanceof Date) {
-        return (valA.getTime() - valB.getTime()) * sortOrder.value;
+      return (valA.getTime() - valB.getTime()) * sortOrder.value;
     }
     return String(valA).localeCompare(String(valB)) * sortOrder.value;
   });
@@ -291,7 +297,7 @@ watch(totalPages, (newTotalPages) => {
 watch(() => props.allUserProfiles, (newProfiles) => {
   if (newProfiles && newProfiles.length > 0) {
   }
-}, { deep: true, immediate: true }); // 'deep: true' para cambios dentro del array, 'immediate: true' para que se ejecute al inicio.
+}, { deep: true, immediate: true }); 
 
 
 onMounted(() => {

@@ -15,15 +15,51 @@
         <InputMask id="phone" v-model="newServiceInternal.phone" mask="(999) 999-9999" placeholder="(999) 999-9999" />
       </div>
 
-      <!-- Fila 2: Fecha de Compra, Fecha de Vencimiento -->
-      <div class="p-field p-col-12 md:p-col-6">
-        <label for="purchase_date">Fecha de Compra</label>
-        <Calendar id="purchase_date" v-model="newServiceInternal.purchase_date" dateFormat="dd/mm/yy" showIcon />
-      </div>
-      <div class="p-field p-col-12 md:p-col-6">
-        <label for="expiration_date">Fecha de Vencimiento</label>
-        <Calendar id="expiration_date" v-model="newServiceInternal.expiration_date" dateFormat="dd/mm/yy" showIcon />
-      </div>
+      <!-- Fila de Fechas: Lógica condicional según rol y si es un nuevo servicio -->
+      <template v-if="userRole === 'admin' || (userRole === 'user' && newServiceInternal.id)">
+        <!-- Para Admin o para editar (rol user) -->
+        <div class="p-field p-col-12 md:p-col-6">
+          <label for="purchase_date">Fecha de Compra</label>
+          <Calendar
+            id="purchase_date"
+            v-model="newServiceInternal.purchase_date"
+            dateFormat="dd/mm/yy"
+            showIcon
+            :disabled="userRole === 'user'"
+          />
+        </div>
+        <div class="p-field p-col-12 md:p-col-6">
+          <label for="expiration_date">Fecha de Vencimiento</label>
+          <Calendar
+            id="expiration_date"
+            v-model="newServiceInternal.expiration_date"
+            dateFormat="dd/mm/yy"
+            showIcon
+            :disabled="userRole === 'user'"
+          />
+        </div>
+      </template>
+
+      <template v-else-if="userRole === 'user' && !newServiceInternal.id">
+        <!-- Para User añadiendo un nuevo servicio -->
+        <div class="p-field p-col-12 md:p-col-6">
+          <label for="purchase_date">Fecha de Compra</label>
+          <Calendar id="purchase_date" v-model="newServiceInternal.purchase_date" dateFormat="dd/mm/yy" disabled />
+        </div>
+        <div class="p-field p-col-12 md:p-col-6">
+          <label for="package">Paquete (Vencimiento)</label>
+          <Dropdown
+            id="package"
+            v-model="selectedPackage"
+            :options="packageOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Selecciona un paquete"
+            required
+          />
+        </div>
+      </template>
+      <!-- Fin de la lógica condicional de fechas -->
 
       <!-- Fila 3: Servidor -->
       <div class="p-field p-col-12 md:p-col-6">
@@ -99,7 +135,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import type { NewServiceInput, ServiceImage } from '@/types/Service';
+import type { NewServiceInput } from '@/types/Service';
 
 // PrimeVue Components
 import InputText from 'primevue/inputtext';
@@ -121,14 +157,26 @@ interface Props {
   formatDeviceToArray: (deviceCounts: { [key: string]: number } | undefined) => string[];
   canEditOwner?: boolean;
   userOptions?: { id: string; username: string }[];
+  userRole?: 'admin' | 'user';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   canEditOwner: false,
   userOptions: () => [],
+  userRole: 'user',
 });
 
 const emit = defineEmits(['update:newService', 'save', 'cancel']);
+
+const packageOptions = [
+  { label: '1 mes', value: 1 },
+  { label: '3 meses', value: 3 },
+  { label: '6 meses', value: 6 },
+  { label: '12 meses', value: 12 },
+  { label: '15 meses', value: 15 },
+];
+
+const selectedPackage = ref<number | null>(null);
 
 const newServiceInternal = ref<NewServiceInput>({
   ...props.newService,
@@ -149,7 +197,6 @@ const newServiceInternal = ref<NewServiceInput>({
 watch(() => props.newService, (newValue) => {
   const isSameServiceById = newValue.id === newServiceInternal.value.id;
   const isDeeplyEqual = JSON.stringify(newValue) === JSON.stringify(newServiceInternal.value);
-
   if (!isSameServiceById || !isDeeplyEqual) {
     newServiceInternal.value = {
       ...newValue,
@@ -166,20 +213,27 @@ watch(() => props.newService, (newValue) => {
       payment_method: newValue.payment_method || '',
       images: newValue.images || [],
     };
-  } else {
   }
 }, { deep: true, immediate: true });
 
 let lastEmittedValueString = JSON.stringify(newServiceInternal.value);
-
 watch(newServiceInternal, (newVal) => {
   const currentStringifiedValue = JSON.stringify(newVal);
   if (currentStringifiedValue !== lastEmittedValueString) {
     emit('update:newService', newVal);
     lastEmittedValueString = currentStringifiedValue;
-  } else {
   }
 }, { deep: true });
+
+watch(selectedPackage, (newPackage) => {
+  if (newPackage !== null) {
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setMonth(today.getMonth() + newPackage);
+    newServiceInternal.value.purchase_date = today;
+    newServiceInternal.value.expiration_date = futureDate;
+  }
+});
 
 onMounted(() => {
   if (!newServiceInternal.value.deviceCounts || Object.keys(newServiceInternal.value.deviceCounts).length === 0) {
@@ -188,7 +242,6 @@ onMounted(() => {
 });
 
 const op = ref<InstanceType<typeof OverlayPanel> | null>(null);
-
 
 const getDeviceSummary = computed(() => {
   if (!newServiceInternal.value.deviceCounts) return 'Seleccione dispositivos';
@@ -247,7 +300,6 @@ const cancelForm = () => {
   height: 100%;
 }
 
-/* Asegúrate de que el área de los campos sea scrollable */
 .client-form-container > div:first-of-type { 
   flex-grow: 1; 
   overflow-y: auto;
@@ -255,11 +307,9 @@ const cancelForm = () => {
   padding-bottom: 3rem;
 }
 
-
 .p-field {
   margin-bottom: 1.5rem;
 }
-
 
 .form-actions {
   display: flex;

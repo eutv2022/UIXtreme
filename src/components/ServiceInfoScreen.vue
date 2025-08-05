@@ -102,7 +102,22 @@
         </div>
       </TabPanel>
     </TabView>
+     <!-- Sección de Historial de Renovaciones -->
+    <div class="field mt-4">
+        <Button
+            :label="showHistory ? 'Ocultar Historial' : 'Ver Historial de Renovaciones'"
+            icon="pi pi-history"
+            class="p-button-secondary p-button-sm"
+            @click="showHistory = !showHistory"
+        />
+    </div>
 
+    <!-- El componente de la tabla -->
+    <RenewalHistoryTable 
+    v-if="showHistory && service.id" 
+    :serviceId="service.id" 
+    :userRole="userRole" 
+    />
     <!-- Dialog para mostrar la imagen expandida -->
     <Dialog
       v-model:visible="isImageDialogVisible"
@@ -144,6 +159,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
 import type { Service, ServiceImage } from '@/types/Service';
+import RenewalHistoryTable from '@/components/RenewalHistoryTable.vue';
+import { useServiceStore } from '@/stores/services'; 
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
@@ -186,6 +203,9 @@ const currentExpandedImage = ref('');
 const currentExpandedImageServiceImageObject = ref<ServiceImage | null>(null);
 const isDeleteButtonVisible = ref(false); 
 
+const serviceStore = useServiceStore();
+const userRole = serviceStore.userRole;
+const showHistory = ref(false); 
 // Opciones para el Carousel
 const carouselResponsiveOptions = ref([
   { breakpoint: '1024px', numVisible: 3, numScroll: 3 },

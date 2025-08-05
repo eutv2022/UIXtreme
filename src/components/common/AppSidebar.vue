@@ -216,13 +216,14 @@ watch(() => router.currentRoute.value.path, (newPath) => {
 @media (max-width: 768px) {
   .app-sidebar {
     position: relative; 
-    top: unset;
+    top: 2rem;
+    bottom: 2rem;
     left: unset;
     width: 100%; 
     z-index: 1; 
     border-right: none;
-    border-bottom: 1px solid var(--surface-border);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+    border-bottom: 10px rgba(18 239 231 / 10%);
+    box-shadow: 0px 2px 20px 9px rgba(54 153 128 / 25%); 
     transition: height 0.3s ease, padding 0.3s ease; 
     height: auto; 
     padding: 1rem; 
