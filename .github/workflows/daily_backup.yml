@@ -1,67 +1,53 @@
-# Este flujo de trabajo automatiza el backup diario de Supabase y lo transfiere a Hostinger.
-name: Supabase Daily Backup
+# Este flujo de trabajo automatiza el backup diario del proyecto GC-2 en Supabase.
+name: Supabase Daily Backup GC-2
 
-# El cron job se ejecutará todos los días a las 23:59 (hora UTC).
-# También se puede ejecutar manualmente con workflow_dispatch.
+# Se ejecuta todos los días a las 23:59 (hora UTC) y se puede activar manualmente.
 on:
   schedule:
     - cron: '59 23 * * *'
   workflow_dispatch:
 
-# Permisos para el repositorio
+# Permisos para el repositorio.
 permissions:
   contents: read
 
 jobs:
-  daily_backup_job:
+  gc2_backup_job:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout del repositorio
+      # Checkout del repositorio
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Configurar la CLI de Supabase
-      # Se requiere el token de acceso de Supabase para la autenticación.
-      # Usamos una versión específica y estable.
-      - name: Setup Supabase CLI
-        uses: supabase/cli@v1.46.0
+      # Configurar la CLI de Supabase
+      - name: Setup Supabase CLI for GC-2
+        uses: supabase/cli@v1.46.0 # Version estable de la CLI
         with:
+          # El token de acceso para el proyecto GC-2
           supabase-access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # 3. Descargar el backup de la base de datos
-      # Crea un archivo .sql con el volcado de los datos.
-      - name: Dump Supabase database
-        run: supabase db dump --data-only -f supabase-backup-$(date +'%Y-%m-%d').sql
+      # Descargar el backup de la base de datos de GC-2
+      - name: Dump GC-2 database
+        run: supabase db dump --data-only -f gc2-backup-$(date +'%Y-%m-%d').sql
 
-      # 4. Configurar la clave SSH para conectarse a Hostinger
-      # Usa un secreto de GitHub para la clave privada.
-      - name: Setup SSH key
+      # Configurar la clave SSH para Hostinger
+      - name: Setup SSH key for Hostinger
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
 
-      # 5. Transferir el backup y limpiar archivos viejos en Hostinger
-      # Este paso usa rsync y SSH para transferir el archivo y luego limpia los viejos.
-      - name: Transfer and cleanup backups on Hostinger
+      # Transferir el backup y limpiar archivos viejos en Hostinger
+      - name: Transfer and cleanup GC-2 backups on Hostinger
         run: |
-          # 5a. Definir el nombre del archivo de backup
-          BACKUP_FILE=supabase-backup-$(date +'%Y-%m-%d').sql
-
-          # 5b. Transferir el archivo a Hostinger usando rsync
-          # Usa las variables de secretos de GitHub para el usuario y host
+          BACKUP_FILE=gc2-backup-$(date +'%Y-%m-%d').sql
           rsync -avz \
             -e "ssh -p 65002 -o StrictHostKeyChecking=no" \
             $BACKUP_FILE \
             ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
 
-          # 5c. Conectarse a Hostinger y eliminar backups con más de 7 días de antigüedad
-          # Esto mantiene la carpeta limpia y dentro del límite de 7 días.
           ssh -p 65002 -o StrictHostKeyChecking=no ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
-            # Navegar a la carpeta de backups
             cd /home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
-
-            # Encontrar y eliminar los archivos más viejos
-            find . -name "supabase-backup-*.sql" -mtime +7 -delete
-
-            echo "Limpieza de backups completada."
+            # Eliminar solo los backups de GC-2 de mas de 7 dias
+            find . -name "gc2-backup-*.sql" -mtime +7 -delete
+            echo "Limpieza de backups de GC-2 completada."
           EOF
