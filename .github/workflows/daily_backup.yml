@@ -30,7 +30,7 @@ jobs:
           ARCH="amd64"
 
           # Descarga el archivo comprimido de la CLI
-   į       curl -sL https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_${OS}_$ARCH.tar.gz -o supabase.tar.gz
+          curl -sL https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_${OS}_$ARCH.tar.gz -o supabase.tar.gz
           
           # Extrae el binario del archivo comprimido
           tar -xzf supabase.tar.gz
