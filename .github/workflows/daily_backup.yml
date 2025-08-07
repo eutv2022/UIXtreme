@@ -19,16 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Usar una accion de GitHub para realizar el dump de la base de datos
-      - name: Dump GC-2 database using specialized action
-        uses: salsita/pg-dump-action@v1.4.0
+      # Usar una accion de GitHub popular para realizar el dump de la base de datos
+      - name: Dump GC-2 database using tj-actions
+        uses: tj-actions/pg-dump@v3
         with:
           # Construimos la cadena de conexión completa
-          connection-url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
+          database_url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
           # Guardamos el resultado en un archivo llamado gc2-backup-YYYY-MM-DD.sql
-          file-path: gc2-backup-$(date +'%Y-%m-%d').sql
+          path: "gc2-backup-$(date +'%Y-%m-%d').sql"
           # Hacemos el backup solo de los datos, sin la estructura
-          data-only: true
+          options: "-Fc --data-only"
 
       # Configurar la clave SSH para Hostinger
       - name: Setup SSH key for Hostinger
