@@ -19,21 +19,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Descargar el backup de la base de datos de GC-2 usando un contenedor Docker para forzar IPv4
-      - name: Dump GC-2 database with Docker
+      # Encontrar la dirección IPv4 del servidor de Supabase y guardarla como una variable de entorno.
+      - name: Find Supabase IPv4 address
+        id: get_ipv4
         run: |
-          # Usamos un contenedor de Docker con el cliente de postgresql preinstalado.
-          # Esto nos da un entorno de red controlado y confiable.
-          # El flag --network host fuerza a Docker a usar la red del host, que se comporta mejor.
-          docker run --rm --network host -e PGHOST="db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co" \
-            -e PGUSER="postgres" \
-            -e PGPASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}" \
-            -e PGDATABASE="postgres" \
-            -v "$PWD":/backups \
-            public.ecr.aws/supabase/postgres:15.1.0.54-rc0 \
-            pg_dump --data-only -f /backups/gc2-backup-$(date +'%Y-%m-%d').sql
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          # El comando 'host' busca la dirección A (IPv4) del host de Supabase.
+          # La opción '-T' deshabilita la resolución IPv6 temporalmente para este paso.
+          # Usamos 'awk' para extraer solo la dirección IP de la respuesta.
+          ipv4=$(host -T a db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co | awk '/has address/ { print $4 }')
+          echo "SUPABASE_IPV4=$ipv4" >> $GITHUB_ENV
+        shell: bash
+
+      # Descargar el backup de la base de datos de GC-2 usando una acción de GitHub.
+      - name: Dump GC-2 database
+        uses: tj-actions/pg-dump@v3
+        with:
+          # Usamos la dirección IPv4 que encontramos en el paso anterior.
+          # Esto garantiza que el runner no intente usar IPv6.
+          database_url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@${{ env.SUPABASE_IPV4 }}:5432/postgres"
+          path: "gc2-backup-$(date +'%Y-%m-%d').sql"
+          options: "-Fc --data-only"
 
       # Configurar la clave SSH para Hostinger
       - name: Setup SSH key for Hostinger
