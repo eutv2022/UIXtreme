@@ -1,44 +1,16 @@
-# Este flujo de trabajo automatiza el backup diario del proyecto GC-2 en Supabase.
-name: Supabase Daily Backup GC-2
-
-# Se ejecuta todos los días a las 23:59 (hora UTC) y se puede activar manualmente.
-on:
-  schedule:
-    - cron: '59 23 * * *'
-  workflow_dispatch:
-
-# Permisos para el repositorio.
-permissions:
-  contents: read
-
-jobs:
-  gc2_backup_job:
-    runs-on: ubuntu-latest
-    steps:
-      # Checkout del repositorio
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Instalar la CLI de Supabase descargando el binario directamente
-      - name: Install Supabase CLI
-        run: |
-          # Define la version de la CLI de Supabase a usar
-          CLI_VERSION="1.46.0"
-          # Define el sistema operativo del runner de GitHub Actions
-          OS=$(uname | tr '[:upper:]' '[:lower:]')
-          # Define la arquitectura del runner
-          ARCH="amd64"
-
-          # Descarga el binario de la CLI
-          curl -sL https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_${OS}_$ARCH -o /usr/local/bin/supabase
-          # Otorga permisos de ejecucion
-          chmod +x /usr/local/bin/supabase
-          
-          # Verifica que la instalacion haya sido exitosa
-          supabase --version
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
+- name: Install Supabase CLI
+  run: |
+    CLI_VERSION="1.46.0"
+    OS="linux"
+    ARCH="amd64"
+    curl -sL "https://github.com/supabase/cli/releases/download/v${CLI_VERSION}/supabase_${OS}_${ARCH}.tar.gz" -o supabase.tar.gz
+    tar -xzf supabase.tar.gz
+    mv supabase /usr/local/bin/supabase
+    chmod +x /usr/local/bin/supabase
+    supabase --version
+  env:
+    SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        
       # Descargar el backup de la base de datos de GC-2
       - name: Dump GC-2 database
         run: supabase db dump --data-only -f gc2-backup-$(date +'%Y-%m-%d').sql
