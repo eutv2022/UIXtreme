@@ -48,13 +48,13 @@ jobs:
           # 5b. Transferir el archivo a Hostinger usando rsync
           # Usa las variables de secretos de GitHub para el usuario y host
           rsync -avz \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            -e "ssh -p 65002 -o StrictHostKeyChecking=no" \
             $BACKUP_FILE \
             ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
 
           # 5c. Conectarse a Hostinger y eliminar backups con más de 7 días de antigüedad
           # Esto mantiene la carpeta limpia y dentro del límite de 7 días.
-          ssh -o StrictHostKeyChecking=no ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+          ssh -p 65002 -o StrictHostKeyChecking=no ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
             # Navegar a la carpeta de backups
             cd /home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
 
