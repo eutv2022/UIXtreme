@@ -2,11 +2,12 @@
 name: Supabase Daily Backup
 
 # El cron job se ejecutará todos los días a las 23:59 (hora UTC).
-# Puedes ajustar la hora si es necesario.
+# También se puede ejecutar manualmente con workflow_dispatch.
 on:
   schedule:
     - cron: '59 23 * * *'
-  workflow_dispatch: 
+  workflow_dispatch:
+
 # Permisos para el repositorio
 permissions:
   contents: read
@@ -21,8 +22,9 @@ jobs:
 
       # 2. Configurar la CLI de Supabase
       # Se requiere el token de acceso de Supabase para la autenticación.
+      # Usamos una versión específica y estable.
       - name: Setup Supabase CLI
-        uses: supabase/cli@main
+        uses: supabase/cli@v1.46.0
         with:
           supabase-access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
