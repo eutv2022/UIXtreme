@@ -19,16 +19,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Usar una accion de GitHub popular para realizar el dump de la base de datos
-      - name: Dump GC-2 database using tj-actions
-        uses: tj-actions/pg-dump@v3
-        with:
-          # Construimos la cadena de conexión completa
-          database_url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
-          # Guardamos el resultado en un archivo llamado gc2-backup-YYYY-MM-DD.sql
-          path: "gc2-backup-$(date +'%Y-%m-%d').sql"
-          # Hacemos el backup solo de los datos, sin la estructura
-          options: "-Fc --data-only"
+      # Descargar el backup de la base de datos de GC-2 usando un contenedor Docker para forzar IPv4
+      - name: Dump GC-2 database with Docker
+        run: |
+          # Usamos un contenedor de Docker con el cliente de postgresql preinstalado.
+          # Esto nos da un entorno de red controlado y confiable.
+          # El flag --network host fuerza a Docker a usar la red del host, que se comporta mejor.
+          docker run --rm --network host -e PGHOST="db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co" \
+            -e PGUSER="postgres" \
+            -e PGPASSWORD="${{ secrets.SUPABASE_DB_PASSWORD }}" \
+            -e PGDATABASE="postgres" \
+            -v "$PWD":/backups \
+            public.ecr.aws/supabase/postgres:15.1.0.54-rc0 \
+            pg_dump --data-only -f /backups/gc2-backup-$(date +'%Y-%m-%d').sql
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       # Configurar la clave SSH para Hostinger
       - name: Setup SSH key for Hostinger
