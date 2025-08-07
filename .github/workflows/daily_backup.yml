@@ -19,56 +19,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Instalar la CLI de Supabase de la manera más robusta
-      - name: Install Supabase CLI
-        run: |
-          # Define la versión de la CLI de Supabase a usar
-          CLI_VERSION="1.46.0"
-          # Define el sistema operativo del runner de GitHub Actions
-          OS=$(uname | tr '[:upper:]' '[:lower:]')
-          # Define la arquitectura del runner
-          ARCH="amd64"
+      # Usar una accion de GitHub para realizar el dump de la base de datos
+      - name: Dump GC-2 database using specialized action
+        uses: salsita/pg-dump-action@v1.4.0
+        with:
+          # Construimos la cadena de conexión completa
+          connection-url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
+          # Guardamos el resultado en un archivo llamado gc2-backup-YYYY-MM-DD.sql
+          file-path: gc2-backup-$(date +'%Y-%m-%d').sql
+          # Hacemos el backup solo de los datos, sin la estructura
+          data-only: true
 
-          # Descarga el archivo comprimido de la CLI
-          curl -sL https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_${OS}_$ARCH.tar.gz -o supabase.tar.gz
-          
-          # Extrae el binario del archivo comprimido
-          tar -xzf supabase.tar.gz
-          
-          # Mueve el binario a una ubicación local de usuario que no requiere sudo
-          mkdir -p ~/.local/bin
-          mv supabase ~/.local/bin/
-          
-          # Agrega el directorio local al PATH para que el comando 'supabase' funcione
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-          # Limpia el archivo comprimido
-          rm supabase.tar.gz
-
-          # Verifica que la instalación haya sido exitosa
-          supabase --version
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-      # Descargar el backup de la base de datos de GC-2 usando pg_dump directamente
-      - name: Dump GC-2 database
-        run: |
-          # Instalar el cliente de PostgreSQL para usar el comando pg_dump
-          sudo apt-get update && sudo apt-get install -y postgresql-client
-
-          # Construir la URL de conexión completa para pg_dump
-          # El flag --hostaddr fuerza a pg_dump a usar IPv4
-          DB_URL="postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
-
-          # Ejecutar pg_dump directamente con el flag PGHOSTADDR para forzar IPv4
-          PGHOSTADDR=$(dig +short A db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co | head -1) \
-          pg_dump \
-            --dbname="$DB_URL" \
-            --data-only \
-            -f gc2-backup-$(date +'%Y-%m-%d').sql
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      
       # Configurar la clave SSH para Hostinger
       - name: Setup SSH key for Hostinger
         uses: webfactory/ssh-agent@v0.8.0
