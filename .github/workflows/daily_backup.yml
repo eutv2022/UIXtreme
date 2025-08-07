@@ -23,23 +23,23 @@ jobs:
       - name: Find Supabase IPv4 address
         id: get_ipv4
         run: |
-          # 'nslookup' busca el registro A (IPv4) del host. La salida se filtra con 'awk'
-          # para extraer solo la dirección IP y se guarda en una variable de entorno.
+          # 'nslookup' busca el registro A (IPv4) del host y extrae la dirección.
           IPV4_ADDRESS=$(nslookup -query=A db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co | awk '/^Address: / { print $2 }')
-          echo "PGHOST=$IPV4_ADDRESS" >> $GITHUB_ENV
+          echo "SUPABASE_IPV4=$IPV4_ADDRESS" >> $GITHUB_ENV
         shell: bash
 
-      # Descargar el backup de la base de datos de GC-2 usando una acción de GitHub.
+      # Descargar el backup de la base de datos de GC-2
       - name: Dump GC-2 database
         uses: tj-actions/pg-dump@v3
         with:
-          # Usamos la dirección IPv4 que encontramos en el paso anterior.
-          # Esto garantiza que el runner no intente usar IPv6.
-          database_url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@${{ env.PGHOST }}:5432/postgres"
+          # Pasamos los parámetros de conexión de forma explícita.
+          host: ${{ env.SUPABASE_IPV4 }}
+          port: 5432
+          user: postgres
+          dbname: postgres
+          password: ${{ secrets.SUPABASE_DB_PASSWORD }}
           path: "gc2-backup-$(date +'%Y-%m-%d').sql"
           options: "-Fc --data-only"
-        env:
-          PGHOST: ${{ env.PGHOST }}
 
       # Configurar la clave SSH para Hostinger
       - name: Setup SSH key for Hostinger
