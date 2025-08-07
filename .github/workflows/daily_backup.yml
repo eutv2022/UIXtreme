@@ -53,9 +53,8 @@ jobs:
       # Descargar el backup de la base de datos de GC-2
       - name: Dump GC-2 database
         run: |
-          # Ejecutar el dump usando el host de la base de datos de Supabase.
-          # Esta es la forma estándar y más robusta de conectarse.
-          supabase db dump \
+          # Usamos un DNS resolver alternativo y el host estandar de la base de datos
+          supabase --dns-resolver https db dump \
             --data-only \
             --db-url "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres" \
             -f gc2-backup-$(date +'%Y-%m-%d').sql
