@@ -22,27 +22,7 @@ jobs:
       # Instalar la CLI de Supabase descargando el archivo comprimido y extrayendolo
       - name: Install Supabase CLI
         run: |
-          # Define la version de la CLI de Supabase a usar
-          CLI_VERSION="1.46.0"
-          # Define el sistema operativo del runner de GitHub Actions
-          OS=$(uname | tr '[:upper:]' '[:lower:]')
-          # Define la arquitectura del runner
-          ARCH="amd64"
-
-          # Descarga el archivo comprimido de la CLI
-          curl -sL https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_${OS}_$ARCH.tar.gz -o supabase.tar.gz
-          
-          # Extrae el binario del archivo comprimido
-          tar -xzf supabase.tar.gz
-          
-          # Mueve el binario a una ubicacion en el PATH para que sea ejecutable
-          sudo mv supabase /usr/local/bin/
-          
-          # Limpia el archivo comprimido
-          rm supabase.tar.gz
-
-          # Verifica que la instalacion haya sido exitosa
-          supabase --version
+          supabase db dump --data-only -f gc2-backup-$(date +'%Y-%m-%d').sql
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
