@@ -1,0 +1,65 @@
+# Este flujo de trabajo automatiza el backup diario de Supabase y lo transfiere a Hostinger.
+name: Supabase Daily Backup
+
+# El cron job se ejecutará todos los días a las 23:59 (hora UTC).
+# Puedes ajustar la hora si es necesario.
+on:
+  schedule:
+    - cron: '59 23 * * *'
+
+# Permisos para el repositorio
+permissions:
+  contents: read
+
+jobs:
+  daily_backup_job:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout del repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar la CLI de Supabase
+      # Se requiere el token de acceso de Supabase para la autenticación.
+      - name: Setup Supabase CLI
+        uses: supabase/cli@main
+        with:
+          supabase-access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      # 3. Descargar el backup de la base de datos
+      # Crea un archivo .sql con el volcado de los datos.
+      - name: Dump Supabase database
+        run: supabase db dump --data-only -f supabase-backup-$(date +'%Y-%m-%d').sql
+
+      # 4. Configurar la clave SSH para conectarse a Hostinger
+      # Usa un secreto de GitHub para la clave privada.
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.HOSTINGER_SSH_PRIVATE_KEY }}
+
+      # 5. Transferir el backup y limpiar archivos viejos en Hostinger
+      # Este paso usa rsync y SSH para transferir el archivo y luego limpia los viejos.
+      - name: Transfer and cleanup backups on Hostinger
+        run: |
+          # 5a. Definir el nombre del archivo de backup
+          BACKUP_FILE=supabase-backup-$(date +'%Y-%m-%d').sql
+
+          # 5b. Transferir el archivo a Hostinger usando rsync
+          # Usa las variables de secretos de GitHub para el usuario y host
+          rsync -avz \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            $BACKUP_FILE \
+            ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }}:/home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
+
+          # 5c. Conectarse a Hostinger y eliminar backups con más de 7 días de antigüedad
+          # Esto mantiene la carpeta limpia y dentro del límite de 7 días.
+          ssh -o StrictHostKeyChecking=no ${{ secrets.HOSTINGER_SSH_USER }}@${{ secrets.HOSTINGER_HOST }} << 'EOF'
+            # Navegar a la carpeta de backups
+            cd /home/${{ secrets.HOSTINGER_SSH_USER }}/public_html/Backups/
+
+            # Encontrar y eliminar los archivos más viejos
+            find . -name "supabase-backup-*.sql" -mtime +7 -delete
+
+            echo "Limpieza de backups completada."
+          EOF
