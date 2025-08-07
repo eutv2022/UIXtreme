@@ -19,11 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Instalar la CLI de Supabase directamente
+      # Instalar la CLI de Supabase de manera más robusta
       - name: Install Supabase CLI
         run: |
-          curl -sL https://supabase.com/cli/install.sh | sh
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH # Agregar al PATH para que el comando 'supabase' funcione
+          curl -sL https://supabase.com/cli/install.sh | bash
+          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
 
       # Descargar el backup de la base de datos de GC-2
       - name: Dump GC-2 database
