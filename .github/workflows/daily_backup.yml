@@ -32,12 +32,9 @@ jobs:
       - name: Dump GC-2 database
         uses: tj-actions/pg-dump@v3
         with:
-          # Pasamos los parámetros de conexión de forma explícita.
-          host: ${{ env.SUPABASE_IPV4 }}
-          port: 5432
-          user: postgres
-          dbname: postgres
-          password: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          # Pasamos toda la cadena de conexión como un solo parámetro, tal como lo requiere la acción.
+          # Esto garantiza que el host se resuelva correctamente.
+          database_url: "postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@${{ env.SUPABASE_IPV4 }}:54000/postgres"
           path: "gc2-backup-$(date +'%Y-%m-%d').sql"
           options: "-Fc --data-only"
 
