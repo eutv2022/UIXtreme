@@ -6,7 +6,7 @@ name: Supabase Daily Backup
 on:
   schedule:
     - cron: '59 23 * * *'
-      workflow_dispatch: 
+  workflow_dispatch: 
 # Permisos para el repositorio
 permissions:
   contents: read
